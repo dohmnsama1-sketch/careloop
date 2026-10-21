@@ -26,7 +26,7 @@ async def test_handshake_and_protocol_versions(server, mode):
     async with Client(server, mode=mode) as c:
         assert c.protocol_version == ("2026-07-28" if mode == "auto" else "2025-11-25")
         names = {t.name for t in (await c.list_tools()).tools}
-        assert len(names) == 16
+        assert len(names) == 17
         assert set(UI_TOOLS) <= names
 
 
@@ -101,3 +101,58 @@ async def test_resources_and_prompts(server):
         assert prompts == {"morning_briefing", "end_of_day_handoff"}
         p = await c.get_prompt("morning_briefing", {"speaker": "Omar"})
         assert "care_briefing" in p.messages[0].content.text
+
+
+async def test_every_tool_end_to_end_over_mcp(server):
+    """Drive all 17 tools through the MCP client, the way an assistant would."""
+    async with Client(server) as c:
+        async def call(tool, **args):
+            r = await c.call_tool(tool, args)
+            assert not r.is_error, (tool, r.content)
+            assert r.structured_content["speech"], tool
+            return r.structured_content
+        assert (await call("household_overview"))["recipient"]
+        await call("med_add", speaker="sara", name="Amlodipine", times=["09:00"], strength="5 mg",
+                   aliases=["new pill"], pills_on_hand=20)
+        await call("dose_log", speaker="sara", medication="new pill", status="skipped")
+        await call("refill_status")
+        await call("note_add", speaker="omar", text="Pharmacy closes at 6 today")
+        assert "Pharmacy" in (await call("whats_new", speaker="sara"))["speech"]
+        await call("checkin", speaker="nora", text="feeling fine", mood=4)
+        await call("appointment_add", speaker="sara", title="Eye exam", when="2026-10-24T15:00", driver="leila")
+        assert "Eye exam" in (await call("agenda", day="tomorrow"))["speech"]
+        await call("meds_due", window_hours=12)
+        await call("adherence_report", days=7)
+        rep = await call("care_report", days=7)
+        assert rep["metrics"]["doses_scheduled"] > 0
+        await call("checkin", speaker="nora", text="I have chest pain")
+        alerts = await call("alerts_list")
+        await call("alert_ack", speaker="omar", alert_id=alerts["alerts"][0]["id"])
+        bad = await c.call_tool("refill_confirm", {"speaker": "leila", "code": "ZZZZ"})
+        assert bad.is_error
+
+
+async def test_all_resources_and_prompts(server):
+    async with Client(server) as c:
+        uris = {str(r.uri) for r in (await c.list_resources()).resources}
+        assert {"careloop://household", "careloop://today", "ui://careloop/report.html"} <= uris
+        hh = (await c.read_resource("careloop://household")).contents[0].text
+        assert "Nora" in hh
+        assert "Lisinopril" in (await c.read_resource("careloop://today")).contents[0].text
+        for p in (await c.list_prompts()).prompts:
+            got = await c.get_prompt(p.name, {"speaker": "Sara"})
+            assert "Sara" in got.messages[0].content.text
+
+
+def test_bearer_guard_and_health(care, monkeypatch):
+    from starlette.testclient import TestClient
+    from careloop.server import http_app
+    monkeypatch.setenv("CARELOOP_TOKEN", "s3cret")
+    monkeypatch.setenv("CARELOOP_ALLOWED_HOSTS", "care.example.com")
+    with TestClient(http_app(care), base_url="http://127.0.0.1:8765") as web:
+        assert web.get("/healthz").status_code == 200
+        r = web.post("/mcp", json={})
+        assert r.status_code == 401 and r.headers["www-authenticate"] == "Bearer"
+        ok = web.post("/mcp", headers={"Authorization": "Bearer s3cret", "Accept": "application/json, text/event-stream"},
+                      json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+        assert ok.status_code != 401

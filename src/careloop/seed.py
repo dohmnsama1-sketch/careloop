@@ -39,7 +39,12 @@ def build(now: datetime) -> dict:
                           "times": times, "pills_on_hand": onhand, "pills_per_dose": 1, "min_interval_hours": gap,
                           "refill_threshold_days": 7, "item_id": item, "active": True, "added_by": "sara"})
     d["counters"]["med"] = len(meds)
-    who = ["sara", "omar", "nora", "leila"]
+    def logger(n: int, t: str) -> str:  # demo pattern: Sara does mornings, Omar evenings, Nora and Leila sometimes
+        if n % 7 == 3:
+            return "nora"
+        if n % 11 == 5:
+            return "leila"
+        return "sara" if t < "12:00" else "omar"
     missed = {(2, "med_2", "20:00"), (5, "med_3", "20:00")}  # (days ago, med, time)
     n = 0
     for back in range(7, 0, -1):
@@ -54,7 +59,7 @@ def build(now: datetime) -> dict:
                 at = slot + timedelta(minutes=(n * 7) % 25)
                 n += 1
                 d["doses"].append({"id": f"dose_{n}", "med_id": mid, "status": "taken", "at": at.isoformat(),
-                                   "slot": slot.isoformat(), "logged_by": who[n % 4], "extra": False})
+                                   "slot": slot.isoformat(), "logged_by": logger(n, t), "extra": False})
     d["counters"]["dose"] = n
     appt = (now + timedelta(days=1)).replace(hour=10, minute=30, second=0, microsecond=0)
     d["appointments"].append({"id": "appt_1", "title": "Cardiology check-up with Dr. Patel", "when": appt.isoformat(),

@@ -208,3 +208,48 @@ def test_alerts_carry_names_for_cards_and_speech(care):
 def test_note_addressed_to_reader_is_spoken_naturally(care):
     care.note_add("sara", "For Omar: Mom wants to see the wedding photos tonight")
     assert "Sara left you a note: Mom wants to see the wedding photos tonight" in care.whats_new("omar")["speech"]
+
+
+def test_care_report_counts_only_logged_events(care):
+    care.dose_log("sara", "lisinopril")
+    assert care.dose_log("omar", "lisinopril")["blocked"] == "possible_double_dose"
+    q = care.refill_quote("sara", "lisinopril")["quote"]
+    care.refill_confirm("sara", q["code"])
+    care.checkin("nora", "I feel dizzy")
+    care.clock.advance(minutes=4)
+    alert = care.alerts()["alerts"][0]
+    care.alert_ack("omar", alert["id"])
+    r = care.care_report(7)
+    m = r["metrics"]
+    assert m["double_doses_prevented"] == 1
+    assert m["refills_ordered"] == 1 and m["refills_before_running_out"] == 1
+    assert m["alerts_raised"] == 1 and m["median_minutes_to_acknowledge"] == 4
+    assert sum(x["doses"] for x in r["load"]) == len([d for d in care.d["doses"] if d["status"] == "taken"
+                                                    and d["at"] > (care.now() - __import__("datetime").timedelta(days=7)).isoformat()])
+    assert "double dose" in r["speech"] and "median of 4 minutes" in r["speech"]
+
+
+def test_care_report_load_insight(care):
+    r = care.care_report(7)
+    assert r["load"][0]["pct"] >= r["load"][-1]["pct"]
+    if r["insight"]:
+        assert r["load"][0]["member"] in r["insight"]
+
+
+def test_care_report_empty_household():
+    from careloop.core import CareLoop
+    from careloop.store import Store
+    from careloop.clock import Clock
+    s = Store(None)
+    s.data["household"]["recipient"] = "r"
+    s.data["household"]["members"] = [{"id": "r", "name": "Rae", "role": "recipient", "aliases": []}]
+    r = CareLoop(s, Clock("UTC")).care_report()
+    assert r["metrics"]["double_doses_prevented"] == 0 and r["speech"]
+
+
+def test_demo_household_starts_at_805_and_runs(tmp_path, monkeypatch):
+    monkeypatch.delenv("CARELOOP_NOW", raising=False)
+    from careloop.server import demo_household
+    care = demo_household(str(tmp_path / "d.json"))
+    assert care.now().strftime("%H:%M") in ("08:05", "08:06")
+    assert care.recipient()["name"] == "Nora" and (tmp_path / "d.json").exists()

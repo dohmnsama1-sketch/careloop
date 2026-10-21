@@ -13,6 +13,7 @@ import argparse
 import hmac
 import json
 import os
+from pathlib import Path
 import sys
 from typing import Annotated, Any, Literal
 
@@ -102,6 +103,13 @@ def build_server(care: CareLoop) -> MCPServer:
     def alerts_list(include_acknowledged: Annotated[bool, Field(description="Also show alerts already handled")] = False) -> CallToolResult:
         """Open alerts (red-flag check-ins, extra doses, low mood), most urgent first, with who was notified."""
         return run(care.alerts, include_acknowledged)
+
+    @apps.tool(resource_uri=uri("report"), name="care_report", title="Weekly care report", annotations=READ)
+    def care_report(days: Annotated[int, Field(ge=1, le=31, description="Number of days to look back")] = 7) -> CallToolResult:
+        """The family's measurable week, computed only from logged events: adherence, double doses prevented,
+        alerts and median minutes to acknowledge, refills ordered before running out, notes shared, and who is
+        carrying the dose-logging load (with a gentle suggestion when one person does most of it)."""
+        return run(care.care_report, days)
 
     for view in VIEWS:
         apps.add_html_resource(uri(view), card_html(view), title=f"CareLoop {view} card",
@@ -216,6 +224,23 @@ def load(path: str | None = None, clock: Clock | None = None) -> CareLoop:
     return CareLoop(store, clock or Clock(tz))
 
 
+def demo_household(path: str | None = None) -> CareLoop:
+    import json
+    import tempfile
+    from datetime import datetime
+
+    from . import seed
+
+    clock = Clock(seed.TZ, frozen=os.environ.get("CARELOOP_NOW") or "")
+    start = clock.now() if clock._frozen else datetime.now(clock.tz).replace(hour=8, minute=5, second=0, microsecond=0)
+    target = Path(path) if path else Path(tempfile.mkdtemp(prefix="careloop-demo-")) / "careloop.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(seed.build(start), indent=2), encoding="utf-8")
+    if not clock._frozen:
+        clock.start_at(start)
+    return CareLoop(Store(target), clock)
+
+
 class BearerGuard:
     """ASGI middleware: require a static bearer token on the MCP endpoint (health check stays open)."""
 
@@ -253,8 +278,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--host", default=os.environ.get("CARELOOP_HOST", "127.0.0.1"))
     p.add_argument("--port", type=int, default=int(os.environ.get("CARELOOP_PORT", "8765")))
     p.add_argument("--data", default=None, help="household JSON file (default $CARELOOP_DATA or data/careloop.json)")
+    p.add_argument("--demo", action="store_true",
+                   help="start a fresh demo household (the Haddad family) at 8:05 AM today, in a temp file")
     a = p.parse_args(argv)
-    care = load(a.data)
+    if a.demo:
+        care = demo_household(a.data)
+        print(f"Demo household: {care.store.path} (clock starts at {care.now():%H:%M} {care.clock.tz})", file=sys.stderr)
+    else:
+        care = load(a.data)
     if a.stdio:
         build_server(care).run("stdio")
         return

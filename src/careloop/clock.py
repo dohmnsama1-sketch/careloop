@@ -13,6 +13,7 @@ class Clock:
     def __init__(self, tz: str = "UTC", frozen: str | None = None):
         self.tz = ZoneInfo(tz)
         self._frozen: datetime | None = None
+        self._offset = timedelta(0)
         frozen = frozen if frozen is not None else os.environ.get("CARELOOP_NOW")
         if frozen:
             self.freeze(frozen)
@@ -21,13 +22,17 @@ class Clock:
         dt = datetime.fromisoformat(when) if isinstance(when, str) else when
         self._frozen = dt if dt.tzinfo else dt.replace(tzinfo=self.tz)
 
+    def start_at(self, when: datetime) -> None:
+        """Run in real time, but starting from `when` (the --demo household starts at 8:05 AM)."""
+        self._offset = when - datetime.now(self.tz)
+
     def advance(self, **kw) -> None:
         if self._frozen is None:
             raise RuntimeError("advance() needs a frozen clock")
         self._frozen += timedelta(**kw)
 
     def now(self) -> datetime:
-        return (self._frozen or datetime.now(self.tz)).astimezone(self.tz).replace(microsecond=0)
+        return (self._frozen or datetime.now(self.tz) + self._offset).astimezone(self.tz).replace(microsecond=0)
 
     def parse(self, value: str) -> datetime:
         """Parse an ISO time ("2026-10-23T08:00", "08:00" = today at 08:00) in the household zone."""

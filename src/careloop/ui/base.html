@@ -20,8 +20,19 @@
 .code{font:800 40px/1 ui-monospace,monospace;letter-spacing:.35em;color:var(--acc)}
 .speech{margin-top:16px;padding:12px 14px;border-left:4px solid var(--acc);background:#0f1a30;border-radius:8px;color:#cfe3ff}
 .empty{color:var(--mute);font-style:italic}
+.brand{display:flex;align-items:center;gap:8px;color:var(--mute);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.brand svg{width:18px;height:18px}.brand .sim{margin-left:auto;text-transform:none;letter-spacing:0}
+.act{font:700 15px system-ui;border:0;border-radius:999px;padding:9px 16px;min-height:44px;min-width:44px;cursor:pointer;background:var(--acc);color:#04142b}
+.act.ghost{background:transparent;color:var(--acc);border:2px solid var(--acc)}.act:disabled{opacity:.5;cursor:default}
+.act:focus-visible,button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px}
+.kpi b{display:block;font-size:34px;font-weight:800;line-height:1.1}.kpi span{font-size:13px;color:var(--mute)}
+.share{display:flex;height:16px;border-radius:999px;overflow:hidden;margin:8px 0}.share i{display:block}
+.insight{margin-top:10px;padding:10px 14px;border-radius:12px;background:#132a1f;border:1px solid #1f5a40;color:#c9f5df}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+@media (prefers-contrast: more){:root{--mute:#d5def0;--line:#6b7fa8}.pill{outline:1px solid currentColor}}
 </style></head>
-<body><div class="wrap" id="app"><p class="empty">Waiting for CareLoop data...</p></div>
+<body><main class="wrap" id="app" aria-live="polite" aria-atomic="true"><p class="empty">Waiting for CareLoop data...</p></main>
 <script>
 const VIEW = "__VIEW__";
 const $ = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d.firstElementChild; };
@@ -29,7 +40,10 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&
 let TZ;  // household time zone, sent in every CareLoop result
 const tm = (iso) => new Date(iso).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit", timeZone: TZ});
 const dt = (iso, o) => new Date(iso).toLocaleString("en-US", {...o, timeZone: TZ});
-function doseRow(r){return `<div class="row"><span class="t">${esc(r.spoken_time)}</span><span class="grow"><b>${esc(r.med)}</b> <span class="small">${esc(r.strength)}</span></span><span class="pill ${r.state}">${r.state}</span></div>`}
+const LOGO = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#5ab4ff" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.1 0 3.6 1.2 4.4 2.6.8-1.4 2.3-2.6 4.4-2.6 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21z"/></svg>`;
+const brand = (d) => `<div class="brand">${LOGO}<span>CareLoop</span><span class="sim">${d.simulated_note?esc(d.simulated_note):""}</span></div>`;
+const act = (label, tool, args, ghost) => `<button class="act${ghost?" ghost":""}" data-tool="${esc(tool)}" data-args='${esc(JSON.stringify(args))}' aria-label="${esc(label)}">${esc(label)}</button>`;
+function doseRow(r){return `<div class="row"><span class="t">${esc(r.spoken_time)}</span><span class="grow"><b>${esc(r.med)}</b> <span class="small">${esc(r.strength)}</span></span><span class="pill ${r.state}" role="status">${r.state}</span></div>`}
 const views = {
   briefing(d){
     const alerts = (d.alerts||[]).map(a=>`<div class="card alert"><b>${esc(a.severity)}</b> ${esc(a.message)}</div>`).join("");
@@ -42,7 +56,7 @@ const views = {
       <div class="card"><h2>New from the family</h2>${notes}</div></div><div class="speech">${esc(d.speech)}</div>`;
   },
   doses(d){
-    const cards = (d.today||[]).map(r=>`<div class="card"><span class="pill ${r.state}">${r.state}</span><div class="big">${esc(r.spoken_time)}</div><b>${esc(r.med)}</b> ${esc(r.strength)}<p class="small">${esc(r.instructions)}</p></div>`).join("");
+    const cards = (d.today||[]).map(r=>`<div class="card"><span class="pill ${r.state}">${r.state}</span><div class="big">${esc(r.spoken_time)}</div><b>${esc(r.med)}</b> ${esc(r.strength)}<p class="small">${esc(r.instructions)}</p>${r.state==="due"||r.state==="missed"?act("Mark given","dose_log",{medication:r.med,status:"taken"}):""}</div>`).join("");
     return `<h1>Today's medications</h1><p class="sub">Swipe for the full day</p><div class="carousel">${cards}</div><div class="speech">${esc(d.speech)}</div>`;
   },
   adherence(d){
@@ -52,8 +66,17 @@ const views = {
     return `<h1>${d.overall_pct==null?"-":d.overall_pct+"%"} of doses taken</h1><p class="sub">Last ${(d.days||[]).length} days</p><div class="card"><div class="bars">${bars}</div></div><h2>By medication</h2><div class="card">${meds}</div><div class="speech">${esc(d.speech)}</div>`;
   },
   alerts(d){
-    const rows=(d.alerts||[]).map(a=>`<div class="card ${a.severity==="normal"?"":"alert"}"><span class="pill ${a.severity==="normal"?"due":"missed"}">${esc(a.severity)}</span> <span class="small">${tm(a.at)}</span><div style="font-size:22px;margin:8px 0">${esc(a.message)}</div><span class="small">${a.acknowledged_by?"Handled by "+esc(a.acknowledged_by_name||a.acknowledged_by):"Notified: "+esc((a.notified_names||a.notified||[]).join(", "))}</span></div>`).join("");
+    const rows=(d.alerts||[]).map(a=>`<div class="card ${a.severity==="normal"?"":"alert"}"><span class="pill ${a.severity==="normal"?"due":"missed"}">${esc(a.severity)}</span> <span class="small">${tm(a.at)}</span><div style="font-size:22px;margin:8px 0">${esc(a.message)}</div><span class="small">${a.acknowledged_by?"Handled by "+esc(a.acknowledged_by_name||a.acknowledged_by):"Notified: "+esc((a.notified_names||a.notified||[]).join(", "))}</span>${a.acknowledged_by?"":`<div style="margin-top:10px">${act("I'm on it","alert_ack",{alert_id:a.id})}</div>`}</div>`).join("");
     return `<h1>${(d.alerts||[]).length ? (d.alerts.length+" open alert"+(d.alerts.length>1?"s":"")) : "No open alerts"}</h1><p class="sub">Most urgent first</p><div style="display:grid;gap:10px">${rows}</div><div class="speech">${esc(d.speech)}</div>`;
+  },
+  report(d){
+    const m=d.metrics||{}; const k=(v,l)=>`<div class="kpi"><b>${v??"–"}</b><span>${l}</span></div>`;
+    const colors=["#5ab4ff","#3ddc97","#ffb547","#c792ff","#ff6b6b"];
+    const bar=(d.load||[]).map((x,i)=>`<i style="width:${x.pct}%;background:${colors[i%5]}" title="${esc(x.member)} ${x.pct}%"></i>`).join("");
+    const legend=(d.load||[]).map((x,i)=>`<span class="small" style="margin-right:12px"><b style="color:${colors[i%5]}">&#9632;</b> ${esc(x.member)} ${x.doses} (${x.pct}%)</span>`).join("");
+    return `<h1>This week in care</h1><p class="sub">Last ${d.days} days &middot; computed from what the family logged</p>
+      <div class="kpis">${k(m.adherence_pct!=null?m.adherence_pct+"%":null,"doses taken ("+m.doses_taken+"/"+m.doses_scheduled+")")}${k(m.double_doses_prevented,"double doses prevented")}${k(m.median_minutes_to_acknowledge!=null?(m.median_minutes_to_acknowledge<1?"&lt;1 min":m.median_minutes_to_acknowledge+" min"):"–","median time to answer an alert ("+m.alerts_acknowledged+"/"+m.alerts_raised+")")}${k(m.refills_ordered?m.refills_before_running_out+"/"+m.refills_ordered:"0","refills ordered before running out")}</div>
+      <h2>Who logged the doses</h2><div class="card"><div class="share" role="img" aria-label="${esc((d.load||[]).map(x=>x.member+" "+x.pct+" percent").join(", "))}">${bar}</div>${legend}${d.insight?`<div class="insight">${esc(d.insight)}</div>`:""}</div>`;
   },
   order(d){
     if (d.order){const o=d.order;return `<h1>Refill ordered</h1><p class="sub">${esc(o.pharmacy)}${o.simulated?" (simulated, nothing was charged)":""}</p><div class="card"><div class="row"><span class="grow"><b>${esc(o.med)}</b> &times; ${o.quantity}</span><b>${esc(o.total)}</b></div><div class="row"><span class="grow">Arriving</span><b>${dt(o.eta, {weekday:"long",hour:"numeric",minute:"2-digit"})}</b></div><div class="row"><span class="grow">Confirmation</span><b>${esc(o.confirmation)}</b></div></div><div class="speech">${esc(d.speech)}</div>`}
@@ -62,7 +85,14 @@ const views = {
       ${blocked?`<div class="card alert"><b>Over the monthly limit</b> A caregiver must raise the limit first.</div>`:`<h2>Say this code to confirm</h2><div class="card"><div class="code">${esc(q.code)}</div><p class="small">Expires at ${tm(q.expires)}. Only members allowed to buy can confirm.</p></div>`}<div class="speech">${esc(d.speech)}</div>`;
   }
 };
-function render(data){ if(!data) return; TZ = data.timezone || undefined; const el=document.getElementById("app"); el.innerHTML = (views[VIEW]||views.briefing)(data); }
+function render(data){ if(!data) return; TZ = data.timezone || undefined; const el=document.getElementById("app"); el.innerHTML = brand(data) + (views[VIEW]||views.briefing)(data); }
+// Touch is a first-class input on Echo Show: buttons ask the host to call a CareLoop tool (MCP Apps tools/call).
+// Purchases are deliberately voice-only: the confirmation code must be spoken back.
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-tool]"); if (!b || window.parent === window) return;
+  b.disabled = true; b.textContent = "…";
+  send("tools/call", {name: b.dataset.tool, arguments: JSON.parse(b.dataset.args || "{}")});
+});
 // MCP Apps (io.modelcontextprotocol/ui): initialize with the host, then render tool results it sends.
 let nextId = 1;
 function send(method, params, isRequest=true){ const msg={jsonrpc:"2.0",method,params}; if(isRequest) msg.id=nextId++; window.parent.postMessage(msg,"*"); }
@@ -72,5 +102,5 @@ window.addEventListener("message", (ev) => {
   else if (m.id === 1 && m.result) send("ui/notifications/initialized", {}, false);
 });
 if (window.__CARELOOP_DATA__) render(window.__CARELOOP_DATA__);
-else if (window.parent !== window) send("ui/initialize", {appInfo:{name:"careloop-card",version:"1.0.0"}, appCapabilities:{}, protocolVersion:"2026-01-26"});
+else if (window.parent !== window) send("ui/initialize", {appInfo:{name:"careloop-card",version:"1.1.0"}, appCapabilities:{}, protocolVersion:"2026-01-26"});
 </script></body></html>

@@ -13,6 +13,8 @@ Safety rules baked in here (not left to the model):
 """
 from __future__ import annotations
 
+import os
+import random
 import secrets
 from datetime import datetime, timedelta
 from typing import Any
@@ -33,6 +35,8 @@ DUE_EARLY = timedelta(minutes=60)     # a dose shows as "due" from 60 min before
 MISSED_AFTER = timedelta(hours=2)     # ...and as "missed" 2 h after its time
 SLOT_MATCH = timedelta(hours=6)       # a logged dose is matched to a scheduled slot within 6 h
 CODE_ALPHABET = "ACDEFHJKMNPRTUVWXY3479"  # no 0/O, 1/I/L, 2/Z, 5/S, 6/G, 8/B: easy to say and hear
+# Demo recordings only: CARELOOP_DEMO_SEED makes quote codes repeatable. Never set it in a real household.
+_RNG = random.Random(os.environ["CARELOOP_DEMO_SEED"]) if os.environ.get("CARELOOP_DEMO_SEED") else secrets.SystemRandom()
 
 
 def spoken_time(dt: datetime) -> str:
@@ -223,6 +227,9 @@ class CareLoop:
                 if timedelta(0) <= gap < timedelta(hours=med["min_interval_hours"]) and not confirm_extra_dose:
                     by = self.member(last["logged_by"])["name"]
                     t = spoken_time(datetime.fromisoformat(last["at"]))
+                    with self.store.lock:
+                        self._audit(who["id"], "dose_blocked", med=med["id"], previous=last["id"])
+                        self.store.save()
                     return {"logged": False, "blocked": "possible_double_dose", "previous": last,
                             "speech": (f"Hold on: {by} already logged {rec}'s {med['name']} at {t}. "
                                        f"I did not log another dose. If a second dose was really taken, say "
@@ -334,9 +341,9 @@ class CareLoop:
             for code, q in list(self.d["quotes"].items()):
                 if q["med_id"] == med["id"] and q["status"] == "open":
                     q["status"] = "replaced"
-            code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(4))
+            code = "".join(_RNG.choice(CODE_ALPHABET) for _ in range(4))
             while code in self.d["quotes"]:
-                code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(4))
+                code = "".join(_RNG.choice(CODE_ALPHABET) for _ in range(4))
             quote = {"code": code, "med_id": med["id"], "med": med["name"], "strength": med.get("strength", ""),
                      "quantity": qty, "days_supply": days_supply, "unit_cents": price.unit_cents,
                      "subtotal_cents": subtotal, "delivery_cents": price.delivery_cents, "total_cents": total,
@@ -385,7 +392,8 @@ class CareLoop:
         with self.store.lock:
             order = {"id": self.store.next_id("order"), "quote": code, "med_id": med["id"], "med": med["name"],
                      "quantity": q["quantity"], "total_cents": q["total_cents"], "total": q["total"],
-                     "placed_by": who["id"], "placed_at": self.now().isoformat(), "status": "placed", **placed}
+                     "placed_by": who["id"], "placed_at": self.now().isoformat(), "status": "placed",
+                     "days_left_at_order": self._refill_row(med)["days_left"], **placed}
             self.d["orders"].append(order)
             q["status"] = "ordered"
             self._audit(who["id"], "refill_confirm", code=code, order=order["id"], total=q["total_cents"])
@@ -509,6 +517,62 @@ class CareLoop:
             self._audit(who["id"], "alert_ack", alert=alert_id)
             self.store.save()
         return {"alert": a, "speech": f"Marked as handled by {who['name']}. The others will see that."}
+
+    # ------------------------------------------------------------------ impact
+    def care_report(self, days: int = 7) -> dict:
+        """A measurable week, computed only from what the family actually logged."""
+        days = max(1, min(int(days), 31))
+        now = self.now()
+        since = now - timedelta(days=days)
+        def recent(rows): return [r for r in rows if datetime.fromisoformat(r["at"]) > since]
+        adh = self.adherence(days)
+        doses = [d for d in recent(self.d["doses"]) if d["status"] == "taken"]
+        load: dict[str, int] = {}
+        for d in doses:
+            load[d["logged_by"]] = load.get(d["logged_by"], 0) + 1
+        total = sum(load.values())
+        share = sorted(({"member": self.member(k)["name"], "member_id": k, "doses": v,
+                         "pct": round(100 * v / total)} for k, v in load.items()), key=lambda x: -x["doses"])
+        audit = recent(self.d["audit"])
+        blocked = sum(1 for a in audit if a["action"] == "dose_blocked")
+        alerts = recent(self.d["alerts"])
+        acked = [a for a in alerts if a.get("acknowledged_at")]
+        mins = sorted((datetime.fromisoformat(a["acknowledged_at"]) - datetime.fromisoformat(a["at"])).total_seconds() / 60
+                      for a in acked)
+        median = None
+        if mins:
+            mid = len(mins) // 2
+            median = round(mins[mid] if len(mins) % 2 else (mins[mid - 1] + mins[mid]) / 2)
+        orders = [o for o in self.d["orders"] if datetime.fromisoformat(o["placed_at"]) > since]
+        on_time = sum(1 for o in orders if o.get("days_left_at_order", 0) > 0)
+        notes = recent(self.d["notes"])
+        metrics = {"adherence_pct": adh["overall_pct"], "doses_taken": sum(x["taken"] for x in adh["days"]),
+                   "doses_scheduled": sum(x["scheduled"] for x in adh["days"]),
+                   "double_doses_prevented": blocked, "alerts_raised": len(alerts), "alerts_acknowledged": len(acked),
+                   "median_minutes_to_acknowledge": median, "refills_ordered": len(orders),
+                   "refills_before_running_out": on_time, "notes_shared": len(notes)}
+        rec = self.recipient()["name"]
+        parts = []
+        if adh["overall_pct"] is not None:
+            parts.append(f"In the last {days} days {rec} took {adh['overall_pct']} percent of scheduled doses")
+        if blocked:
+            parts.append(f"I stopped {blocked} possible double dose{'s' if blocked > 1 else ''}")
+        if alerts:
+            a = f"{len(alerts)} alert{'s' if len(alerts) > 1 else ''} came in"
+            if median is not None:
+                a += (", answered in under a minute" if median < 1
+                      else f", answered in a median of {median} minute{'s' if median != 1 else ''}")
+            parts.append(a)
+        if orders:
+            parts.append(f"{on_time} of {len(orders)} refill{'s' if len(orders) > 1 else ''} ordered before running out")
+        insight = None
+        caregivers = [x for x in share if self.member(x["member_id"]).get("role") == "caregiver"]
+        if caregivers and total >= 6 and caregivers[0]["pct"] >= 50:
+            top = caregivers[0]
+            insight = (f"{top['member']} logged {top['pct']} percent of doses. If that's a lot for one person, "
+                       f"ask Alexa to share a time slot with someone else.")
+        speech = (". ".join(parts) + "." if parts else "Not enough history yet.") + (f" {insight}" if insight else "")
+        return {"days": days, "metrics": metrics, "load": share, "insight": insight, "adherence": adh, "speech": speech}
 
     # ------------------------------------------------------------------ appointments
     def appointment_add(self, actor: str, title: str, when: str, where: str = "", driver: str | None = None,

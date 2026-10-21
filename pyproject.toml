@@ -1,6 +1,6 @@
 [project]
 name = "careloop"
-version = "1.0.0"
+version = "1.1.0"
 description = "CareLoop: a self-hosted MCP server (Streamable HTTP) that turns Alexa+ into a family care coordinator."
 readme = "README.md"
 license = "MIT"

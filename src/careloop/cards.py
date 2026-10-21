@@ -1,7 +1,7 @@
-"""MCP Apps (ui://) cards for screen devices such as Echo Show. One template, five views."""
+"""MCP Apps (ui://) cards for screen devices such as Echo Show. One template, six views."""
 from importlib import resources
 
-VIEWS = ("briefing", "doses", "adherence", "order", "alerts")
+VIEWS = ("briefing", "doses", "adherence", "order", "alerts", "report")
 _BASE = resources.files("careloop").joinpath("ui/base.html").read_text(encoding="utf-8")
 
 

@@ -1,72 +1,386 @@
 {
   "name": "CareLoop sample utterances for alexa-mcp-sim (offline planner)",
-  "members": ["Sara", "Omar", "Nora", "Leila"],
+  "members": [
+    "Sara",
+    "Omar",
+    "Nora",
+    "Leila"
+  ],
   "fallback": "Sorry, I didn't get that. Try: good morning, what's due, order more Lisinopril, or tell Omar something.",
   "intents": [
-    {"name": "Briefing", "tool": "care_briefing", "args": {"speaker": "{speaker}"},
-     "show": ["Alexa, good morning"],
-     "samples": ["good morning", "good afternoon", "good evening", "morning", "how is {who} doing", "how's {who} doing",
-                 "what do i need to know", "give me the update", "care update", "give me the care update"]},
-    {"name": "MedsDue", "tool": "meds_due", "args": {"window_hours": 3},
-     "show": ["What's due for Mom?"],
-     "samples": ["what's due", "what is due", "what's due for {who}", "what medications are due", "what pills are due",
-                 "which pills are due", "what does {who} need to take", "show today's medications", "show me today's pills"]},
-    {"name": "DoseTaken", "tool": "dose_log", "args": {"speaker": "{speaker}", "medication": "{med}", "status": "taken"},
-     "show": ["Mom took her blood pressure pill"],
-     "samples": ["{who} took her {med}", "{who} took his {med}", "{who} just took her {med}", "{who} took {med}",
-                 "i took my {med}", "i just took my {med}", "i took {med}", "log {med} as taken", "{med} taken", "gave {who} her {med}"]},
-    {"name": "DoseSkipped", "tool": "dose_log", "args": {"speaker": "{speaker}", "medication": "{med}", "status": "skipped"},
-     "samples": ["{who} skipped her {med}", "{who} skipped {med}", "i skipped my {med}", "log {med} as skipped", "skip {med}"]},
-    {"name": "ExtraDose", "tool": "dose_log",
-     "args": {"speaker": "{speaker}", "medication": "{last.dose_log.previous.med_id}", "status": "taken", "confirm_extra_dose": true},
-     "needs_context": "There's no double-dose warning to confirm right now.",
-     "samples": ["confirm extra dose", "yes confirm extra dose", "confirm the extra dose"]},
-    {"name": "Adherence", "tool": "adherence_report", "args": {"days": 7},
-     "show": ["How has Mom done with her meds this week?"],
-     "samples": ["how has {who} done with her meds this week", "how has {who} been doing with her meds",
-                 "how's {who} doing with her medication", "how many doses did {who} miss this week", "show adherence",
-                 "medication report", "adherence report"]},
-    {"name": "Refills", "tool": "refill_status", "args": {},
-     "samples": ["do we need refills", "do we need any refills", "is anything running low", "how many pills are left", "refill status"]},
-    {"name": "RefillQuote", "tool": "refill_quote", "args": {"speaker": "{speaker}", "medication": "{med}", "days_supply": 30},
-     "show": ["Order more of her blood pressure pills"],
-     "samples": ["order more of her {med}", "order more {med}", "refill {med}", "refill her {med}", "reorder {med}",
-                 "get a refill quote for {med}", "order a refill of {med}", "we need more {med}"]},
-    {"name": "RefillYes", "reply": "To keep orders safe, please say the four-character code on the screen, like: confirm order A B C D.",
-     "samples": ["yes", "yes order it", "order it", "go ahead", "yes please", "do it"]},
-    {"name": "RefillConfirm", "tool": "refill_confirm", "args": {"speaker": "{speaker}", "code": "{code}"},
-     "show": ["Confirm order …"],
-     "samples": ["confirm order {code}", "confirm {code}", "the code is {code}", "yes confirm order {code}"]},
-    {"name": "NoteFor", "tool": "note_add", "args": {"speaker": "{speaker}", "text": "For {who}: {text}"},
-     "show": ["Tell Omar Mom wants to see the wedding photos tonight"],
-     "samples": ["tell {who} that {text}", "tell {who} {text}", "let {who} know that {text}", "let {who} know {text}"]},
-    {"name": "Note", "tool": "note_add", "args": {"speaker": "{speaker}", "text": "{text}"},
-     "samples": ["leave a note {text}", "leave a note that {text}", "note that {text}", "remind everyone {text}"]},
-    {"name": "WhatsNew", "tool": "whats_new", "args": {"speaker": "{speaker}"},
-     "show": ["What did I miss?"],
-     "samples": ["what did i miss", "what's new", "what is new", "any updates", "anything new", "catch me up"]},
-    {"name": "CheckinFeel", "tool": "checkin", "args": {"speaker": "{speaker}", "text": "I feel {text}"},
-     "show": ["I feel a little dizzy"],
-     "samples": ["i feel {text}", "i am feeling {text}", "i'm feeling {text}"]},
-    {"name": "CheckinFell", "tool": "checkin", "args": {"speaker": "{speaker}", "text": "I fell {text}"},
-     "samples": ["i fell {text}"]},
-    {"name": "CheckinHelp", "tool": "checkin", "args": {"speaker": "{speaker}", "text": "Help me, I fell"},
-     "samples": ["i fell", "help", "help me", "i need help"]},
-    {"name": "Alerts", "tool": "alerts_list", "args": {},
-     "show": ["Any alerts?"],
-     "samples": ["any alerts", "are there any alerts", "what are the alerts", "is everything ok", "is everything okay"]},
-    {"name": "AckAlert", "tool": "alert_ack", "args": {"speaker": "{speaker}", "alert_id": "{last.alerts_list.alerts.0.id}"},
-     "needs_context": "Ask me about alerts first, so I know which one you mean.",
-     "show": ["I'm on it"],
-     "samples": ["i'm on it", "i am on it", "i'll handle it", "i've got it", "mark it handled", "mark it as handled"]},
-    {"name": "AgendaTomorrow", "tool": "agenda", "args": {"day": "tomorrow"},
-     "samples": ["what's happening tomorrow", "what's on tomorrow", "any appointments tomorrow", "who's driving tomorrow",
-                 "who is driving {who} tomorrow", "who's driving {who} tomorrow"]},
-    {"name": "AgendaToday", "tool": "agenda", "args": {"day": "today"},
-     "samples": ["what's on the calendar today", "any appointments today", "what's happening today"]},
-    {"name": "AgendaWeek", "tool": "agenda", "args": {"day": "week"},
-     "samples": ["what appointments are coming up", "what's coming up this week", "any appointments this week"]},
-    {"name": "Household", "tool": "household_overview", "args": {},
-     "samples": ["who's in the family", "who is in the care team", "who's on the care team"]}
+    {
+      "name": "Briefing",
+      "tool": "care_briefing",
+      "args": {
+        "speaker": "{speaker}"
+      },
+      "show": [
+        "Alexa, good morning"
+      ],
+      "samples": [
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "morning",
+        "how is {who} doing",
+        "how's {who} doing",
+        "what do i need to know",
+        "give me the update",
+        "care update",
+        "give me the care update"
+      ]
+    },
+    {
+      "name": "MedsDue",
+      "tool": "meds_due",
+      "args": {
+        "window_hours": 3
+      },
+      "show": [
+        "What's due for Mom?"
+      ],
+      "samples": [
+        "what's due",
+        "what is due",
+        "what's due for {who}",
+        "what medications are due",
+        "what pills are due",
+        "which pills are due",
+        "what does {who} need to take",
+        "show today's medications",
+        "show me today's pills"
+      ]
+    },
+    {
+      "name": "DoseTaken",
+      "tool": "dose_log",
+      "args": {
+        "speaker": "{speaker}",
+        "medication": "{med}",
+        "status": "taken"
+      },
+      "show": [
+        "Mom took her blood pressure pill"
+      ],
+      "samples": [
+        "{who} took her {med}",
+        "{who} took his {med}",
+        "{who} just took her {med}",
+        "{who} took {med}",
+        "i took my {med}",
+        "i just took my {med}",
+        "i took {med}",
+        "log {med} as taken",
+        "{med} taken",
+        "gave {who} her {med}"
+      ]
+    },
+    {
+      "name": "DoseSkipped",
+      "tool": "dose_log",
+      "args": {
+        "speaker": "{speaker}",
+        "medication": "{med}",
+        "status": "skipped"
+      },
+      "samples": [
+        "{who} skipped her {med}",
+        "{who} skipped {med}",
+        "i skipped my {med}",
+        "log {med} as skipped",
+        "skip {med}"
+      ]
+    },
+    {
+      "name": "ExtraDose",
+      "tool": "dose_log",
+      "args": {
+        "speaker": "{speaker}",
+        "medication": "{last.dose_log.previous.med_id}",
+        "status": "taken",
+        "confirm_extra_dose": true
+      },
+      "needs_context": "There's no double-dose warning to confirm right now.",
+      "samples": [
+        "confirm extra dose",
+        "yes confirm extra dose",
+        "confirm the extra dose"
+      ]
+    },
+    {
+      "name": "CareReport",
+      "tool": "care_report",
+      "args": {
+        "days": 7
+      },
+      "show": [
+        "How did we do as a family this week?"
+      ],
+      "samples": [
+        "how did we do as a family this week",
+        "how did we do this week",
+        "how was the week",
+        "weekly report",
+        "care report",
+        "family report",
+        "how are we doing as a family"
+      ]
+    },
+    {
+      "name": "Adherence",
+      "tool": "adherence_report",
+      "args": {
+        "days": 7
+      },
+      "show": [
+        "How has Mom done with her meds this week?"
+      ],
+      "samples": [
+        "how has {who} done with her meds this week",
+        "how has {who} been doing with her meds",
+        "how's {who} doing with her medication",
+        "how many doses did {who} miss this week",
+        "show adherence",
+        "medication report",
+        "adherence report"
+      ]
+    },
+    {
+      "name": "Refills",
+      "tool": "refill_status",
+      "args": {},
+      "samples": [
+        "do we need refills",
+        "do we need any refills",
+        "is anything running low",
+        "how many pills are left",
+        "refill status"
+      ]
+    },
+    {
+      "name": "RefillQuote",
+      "tool": "refill_quote",
+      "args": {
+        "speaker": "{speaker}",
+        "medication": "{med}",
+        "days_supply": 30
+      },
+      "show": [
+        "Order more of her blood pressure pills"
+      ],
+      "samples": [
+        "order more of her {med}",
+        "order more {med}",
+        "refill {med}",
+        "refill her {med}",
+        "reorder {med}",
+        "get a refill quote for {med}",
+        "order a refill of {med}",
+        "we need more {med}"
+      ]
+    },
+    {
+      "name": "RefillYes",
+      "reply": "To keep orders safe, please say the four-character code on the screen, like: confirm order A B C D.",
+      "samples": [
+        "yes",
+        "yes order it",
+        "order it",
+        "go ahead",
+        "yes please",
+        "do it"
+      ]
+    },
+    {
+      "name": "RefillConfirm",
+      "tool": "refill_confirm",
+      "args": {
+        "speaker": "{speaker}",
+        "code": "{code}"
+      },
+      "show": [
+        "Confirm order \u2026"
+      ],
+      "samples": [
+        "confirm order {code}",
+        "confirm {code}",
+        "the code is {code}",
+        "yes confirm order {code}"
+      ]
+    },
+    {
+      "name": "NoteFor",
+      "tool": "note_add",
+      "args": {
+        "speaker": "{speaker}",
+        "text": "For {who}: {text}"
+      },
+      "show": [
+        "Tell Omar Mom wants to see the wedding photos tonight"
+      ],
+      "samples": [
+        "tell {who} that {text}",
+        "tell {who} {text}",
+        "let {who} know that {text}",
+        "let {who} know {text}"
+      ]
+    },
+    {
+      "name": "Note",
+      "tool": "note_add",
+      "args": {
+        "speaker": "{speaker}",
+        "text": "{text}"
+      },
+      "samples": [
+        "leave a note {text}",
+        "leave a note that {text}",
+        "note that {text}",
+        "remind everyone {text}"
+      ]
+    },
+    {
+      "name": "WhatsNew",
+      "tool": "whats_new",
+      "args": {
+        "speaker": "{speaker}"
+      },
+      "show": [
+        "What did I miss?"
+      ],
+      "samples": [
+        "what did i miss",
+        "what's new",
+        "what is new",
+        "any updates",
+        "anything new",
+        "catch me up"
+      ]
+    },
+    {
+      "name": "CheckinFeel",
+      "tool": "checkin",
+      "args": {
+        "speaker": "{speaker}",
+        "text": "I feel {text}"
+      },
+      "show": [
+        "I feel a little dizzy"
+      ],
+      "samples": [
+        "i feel {text}",
+        "i am feeling {text}",
+        "i'm feeling {text}"
+      ]
+    },
+    {
+      "name": "CheckinFell",
+      "tool": "checkin",
+      "args": {
+        "speaker": "{speaker}",
+        "text": "I fell {text}"
+      },
+      "samples": [
+        "i fell {text}"
+      ]
+    },
+    {
+      "name": "CheckinHelp",
+      "tool": "checkin",
+      "args": {
+        "speaker": "{speaker}",
+        "text": "Help me, I fell"
+      },
+      "samples": [
+        "i fell",
+        "help",
+        "help me",
+        "i need help"
+      ]
+    },
+    {
+      "name": "Alerts",
+      "tool": "alerts_list",
+      "args": {},
+      "show": [
+        "Any alerts?"
+      ],
+      "samples": [
+        "any alerts",
+        "are there any alerts",
+        "what are the alerts",
+        "is everything ok",
+        "is everything okay"
+      ]
+    },
+    {
+      "name": "AckAlert",
+      "tool": "alert_ack",
+      "args": {
+        "speaker": "{speaker}",
+        "alert_id": "{last.alerts_list.alerts.0.id}"
+      },
+      "needs_context": "Ask me about alerts first, so I know which one you mean.",
+      "show": [
+        "I'm on it"
+      ],
+      "samples": [
+        "i'm on it",
+        "i am on it",
+        "i'll handle it",
+        "i've got it",
+        "mark it handled",
+        "mark it as handled"
+      ]
+    },
+    {
+      "name": "AgendaTomorrow",
+      "tool": "agenda",
+      "args": {
+        "day": "tomorrow"
+      },
+      "samples": [
+        "what's happening tomorrow",
+        "what's on tomorrow",
+        "any appointments tomorrow",
+        "who's driving tomorrow",
+        "who is driving {who} tomorrow",
+        "who's driving {who} tomorrow"
+      ]
+    },
+    {
+      "name": "AgendaToday",
+      "tool": "agenda",
+      "args": {
+        "day": "today"
+      },
+      "samples": [
+        "what's on the calendar today",
+        "any appointments today",
+        "what's happening today"
+      ]
+    },
+    {
+      "name": "AgendaWeek",
+      "tool": "agenda",
+      "args": {
+        "day": "week"
+      },
+      "samples": [
+        "what appointments are coming up",
+        "what's coming up this week",
+        "any appointments this week"
+      ]
+    },
+    {
+      "name": "Household",
+      "tool": "household_overview",
+      "args": {},
+      "samples": [
+        "who's in the family",
+        "who is in the care team",
+        "who's on the care team"
+      ]
+    }
   ]
 }
