@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CareLoop</title>
+<style>
+:root{--bg:#0b1220;--card:#121b2e;--line:#22304d;--ink:#eef3ff;--mute:#9fb0cf;--ok:#3ddc97;--warn:#ffb547;--bad:#ff6b6b;--acc:#5ab4ff}
+*{box-sizing:border-box}body{margin:0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{padding:22px 26px}h1{font-size:28px;margin:0 0 4px}h2{font-size:15px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+.sub{color:var(--mute);margin:0 0 14px}.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:12px}.card h2{margin-top:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+.row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}
+.pill{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em}
+.taken{background:#123d2d;color:var(--ok)}.due{background:#3d3112;color:var(--warn)}.missed{background:#3d1616;color:var(--bad)}.upcoming{background:#16264a;color:var(--acc)}.skipped{background:#2a2a2a;color:#bbb}
+.t{min-width:76px;font-weight:700;font-size:18px}.grow{flex:1}.small{font-size:13px;color:var(--mute)}
+.big{font-size:44px;font-weight:800}.alert{border-color:#5a2020;background:#201216}.alert b{color:var(--bad)}
+.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+.carousel .card{min-width:210px;scroll-snap-align:start}
+.bars{display:flex;align-items:flex-end;gap:10px;height:150px;margin-top:8px}.bar{flex:1;text-align:center}
+.bar i{display:block;border-radius:8px 8px 0 0;background:linear-gradient(var(--acc),#2a6fd6);margin:0 auto;width:70%}
+.bar.lowb i{background:linear-gradient(var(--warn),#b37400)}
+.code{font:800 40px/1 ui-monospace,monospace;letter-spacing:.35em;color:var(--acc)}
+.speech{margin-top:16px;padding:12px 14px;border-left:4px solid var(--acc);background:#0f1a30;border-radius:8px;color:#cfe3ff}
+.empty{color:var(--mute);font-style:italic}
+</style></head>
+<body><div class="wrap" id="app"><p class="empty">Waiting for CareLoop data...</p></div>
+<script>
+const VIEW = "__VIEW__";
+const $ = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d.firstElementChild; };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let TZ;  // household time zone, sent in every CareLoop result
+const tm = (iso) => new Date(iso).toLocaleTimeString("en-US", {hour:"numeric", minute:"2-digit", timeZone: TZ});
+const dt = (iso, o) => new Date(iso).toLocaleString("en-US", {...o, timeZone: TZ});
+function doseRow(r){return `<div class="row"><span class="t">${esc(r.spoken_time)}</span><span class="grow"><b>${esc(r.med)}</b> <span class="small">${esc(r.strength)}</span></span><span class="pill ${r.state}">${r.state}</span></div>`}
+const views = {
+  briefing(d){
+    const alerts = (d.alerts||[]).map(a=>`<div class="card alert"><b>${esc(a.severity)}</b> ${esc(a.message)}</div>`).join("");
+    const appts = (d.appointments||[]).map(a=>`<div class="row"><span class="grow"><b>${esc(a.title)}</b><br><span class="small">${esc(a.when_label)}${a.where?" &middot; "+esc(a.where):""}${a.driver_name?" &middot; "+esc(a.driver_name)+" driving":""}</span></span></div>`).join("") || `<p class="empty">No appointments today or tomorrow.</p>`;
+    const low = (d.refills||[]).map(r=>`<div class="row"><span class="grow"><b>${esc(r.med)}</b><br><span class="small">${r.order_pending?"refill on the way":r.days_left+" days left"}</span></span><span class="pill ${r.needs_refill?"missed":"taken"}">${r.needs_refill?"low":"ok"}</span></div>`).join("");
+    const notes = (d.new_notes||[]).map(n=>`<div class="row"><span class="grow">&ldquo;${esc(n.text)}&rdquo;<br><span class="small">${esc(n.author_name)}</span></span></div>`).join("") || `<p class="empty">No new notes.</p>`;
+    return `<h1>${esc(d.greeting)}</h1><p class="sub">Caring for ${esc(d.recipient)}</p>${alerts}
+      <div class="grid"><div class="card"><h2>Today's doses</h2>${(d.doses||[]).map(doseRow).join("")}</div>
+      <div class="card"><h2>Appointments</h2>${appts}</div><div class="card"><h2>Supplies</h2>${low}</div>
+      <div class="card"><h2>New from the family</h2>${notes}</div></div><div class="speech">${esc(d.speech)}</div>`;
+  },
+  doses(d){
+    const cards = (d.today||[]).map(r=>`<div class="card"><span class="pill ${r.state}">${r.state}</span><div class="big">${esc(r.spoken_time)}</div><b>${esc(r.med)}</b> ${esc(r.strength)}<p class="small">${esc(r.instructions)}</p></div>`).join("");
+    return `<h1>Today's medications</h1><p class="sub">Swipe for the full day</p><div class="carousel">${cards}</div><div class="speech">${esc(d.speech)}</div>`;
+  },
+  adherence(d){
+    const n = (d.days||[]).length;
+    const bars = (d.days||[]).map((x,i)=>{const p=x.pct??0;return `<div class="bar ${x.pct!=null&&p<100?"lowb":""}"><i style="height:${x.pct==null?4:Math.max(4,p*1.2)}px;${x.pct==null?"background:#22304d":""}"></i><div class="small">${i===n-1?"Today":esc(x.weekday)}</div><div><b>${x.pct==null?"so far":p+"%"}</b></div></div>`}).join("");
+    const meds = (d.medications||[]).map(m=>`<div class="row"><span class="grow"><b>${esc(m.med)}</b></span><span>${m.taken}/${m.scheduled}</span><span class="pill ${m.pct<80?"missed":m.pct<100?"due":"taken"}">${m.pct}%</span></div>`).join("");
+    return `<h1>${d.overall_pct==null?"-":d.overall_pct+"%"} of doses taken</h1><p class="sub">Last ${(d.days||[]).length} days</p><div class="card"><div class="bars">${bars}</div></div><h2>By medication</h2><div class="card">${meds}</div><div class="speech">${esc(d.speech)}</div>`;
+  },
+  alerts(d){
+    const rows=(d.alerts||[]).map(a=>`<div class="card ${a.severity==="normal"?"":"alert"}"><span class="pill ${a.severity==="normal"?"due":"missed"}">${esc(a.severity)}</span> <span class="small">${tm(a.at)}</span><div style="font-size:22px;margin:8px 0">${esc(a.message)}</div><span class="small">${a.acknowledged_by?"Handled by "+esc(a.acknowledged_by_name||a.acknowledged_by):"Notified: "+esc((a.notified_names||a.notified||[]).join(", "))}</span></div>`).join("");
+    return `<h1>${(d.alerts||[]).length ? (d.alerts.length+" open alert"+(d.alerts.length>1?"s":"")) : "No open alerts"}</h1><p class="sub">Most urgent first</p><div style="display:grid;gap:10px">${rows}</div><div class="speech">${esc(d.speech)}</div>`;
+  },
+  order(d){
+    if (d.order){const o=d.order;return `<h1>Refill ordered</h1><p class="sub">${esc(o.pharmacy)}${o.simulated?" (simulated, nothing was charged)":""}</p><div class="card"><div class="row"><span class="grow"><b>${esc(o.med)}</b> &times; ${o.quantity}</span><b>${esc(o.total)}</b></div><div class="row"><span class="grow">Arriving</span><b>${dt(o.eta, {weekday:"long",hour:"numeric",minute:"2-digit"})}</b></div><div class="row"><span class="grow">Confirmation</span><b>${esc(o.confirmation)}</b></div></div><div class="speech">${esc(d.speech)}</div>`}
+    const q=d.quote||{};const blocked=q.status==="blocked_over_cap";
+    return `<h1>Refill quote: ${esc(q.med)}</h1><p class="sub">${esc(q.pharmacy)}</p><div class="card"><div class="row"><span class="grow">${q.quantity} tablets (${q.days_supply}-day supply)</span><span>$${(q.subtotal_cents/100).toFixed(2)}</span></div><div class="row"><span class="grow">Delivery</span><span>$${(q.delivery_cents/100).toFixed(2)}</span></div><div class="row"><span class="grow"><b>Total</b></span><b>${esc(q.total)}</b></div></div>
+      ${blocked?`<div class="card alert"><b>Over the monthly limit</b> A caregiver must raise the limit first.</div>`:`<h2>Say this code to confirm</h2><div class="card"><div class="code">${esc(q.code)}</div><p class="small">Expires at ${tm(q.expires)}. Only members allowed to buy can confirm.</p></div>`}<div class="speech">${esc(d.speech)}</div>`;
+  }
+};
+function render(data){ if(!data) return; TZ = data.timezone || undefined; const el=document.getElementById("app"); el.innerHTML = (views[VIEW]||views.briefing)(data); }
+// MCP Apps (io.modelcontextprotocol/ui): initialize with the host, then render tool results it sends.
+let nextId = 1;
+function send(method, params, isRequest=true){ const msg={jsonrpc:"2.0",method,params}; if(isRequest) msg.id=nextId++; window.parent.postMessage(msg,"*"); }
+window.addEventListener("message", (ev) => {
+  const m = ev.data || {};
+  if (m.method === "ui/notifications/tool-result") render((m.params||{}).structuredContent);
+  else if (m.id === 1 && m.result) send("ui/notifications/initialized", {}, false);
+});
+if (window.__CARELOOP_DATA__) render(window.__CARELOOP_DATA__);
+else if (window.parent !== window) send("ui/initialize", {appInfo:{name:"careloop-card",version:"1.0.0"}, appCapabilities:{}, protocolVersion:"2026-01-26"});
+</script></body></html>
