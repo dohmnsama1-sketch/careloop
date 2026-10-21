@@ -6,7 +6,7 @@
 - Accessibility: `aria-live` cards, labelled 44 px touch targets, `prefers-reduced-motion` and `prefers-contrast` support.
 - `careloop --demo`: a fresh demo household whose clock runs in real time from 8:05 AM today.
 - Handoff notes addressed to the listener are read naturally ("Sara left you a note: …").
-- GitHub Actions CI on Python 3.11–3.13. Tests went from 35 to 42, with source coverage at 93%.
+- Tests went from 35 to 42, with source coverage at 93%. Tested on Python 3.11, 3.12 and 3.13.
 - SECURITY.md and FRICTION_LOG.md.
 
 ## 1.0.0 (2026-10-22)
