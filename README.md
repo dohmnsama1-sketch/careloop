@@ -1,6 +1,7 @@
 <p align="center"><img src="docs/banner.png" alt="CareLoop: Alexa+ for families caring for someone at home" width="100%"></p>
 
 <p align="center">
+<a href="https://github.com/dohmnsama1-sketch/careloop/actions/workflows/ci.yml"><img src="https://github.com/dohmnsama1-sketch/careloop/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 <img src="https://img.shields.io/badge/tests-42%20passing-3ddc97" alt="42 tests">
 <img src="https://img.shields.io/badge/coverage-93%25-3ddc97" alt="coverage 93%">
 <img src="https://img.shields.io/badge/MCP-2025--11--25%20%7C%202026--07--28-5ab4ff" alt="MCP versions">
