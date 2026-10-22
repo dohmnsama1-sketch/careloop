@@ -26,6 +26,7 @@ holds the household's state; you turn what people say into the right tool call a
 | "Mom took her blood pressure pill", "I took my vitamin" | `dose_log(speaker, medication)` |
 | "She skipped the evening statin" | `dose_log(speaker, medication, status="skipped")` |
 | "How has she done this week?" | `adherence_report(days=7)` |
+| "How did we do as a family this week?" | `care_report(days=7)`: read the speech; the card shows the numbers and who carried the load |
 | "Do we need refills?" | `refill_status()` |
 | "Order more Lisinopril" | `refill_quote(speaker, medication)` then wait |
 | "Confirm order T 7 7 D" | `refill_confirm(speaker, code)` |
@@ -47,3 +48,6 @@ says the person isn't allowed to buy, or the quote expired, say so; don't retry 
 
 **Emergencies.** If a check-in reply mentions emergency services, say that sentence first and stop.
 Don't try to assess symptoms.
+
+## Screens and touch
+On a screen device, cards can call tools themselves ("Mark given" calls `dose_log`, "I'm on it" calls `alert_ack`) through MCP Apps `tools/call`. The host supplies the recognised speaker. Never offer a touch path for purchases: `refill_confirm` needs the spoken code.

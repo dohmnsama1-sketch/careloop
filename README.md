@@ -14,7 +14,7 @@
 
 ## Why
 
-- **63 million** Americans are family caregivers. They give an average of **27 hours of care a week**, and **55%** do medical tasks such as giving medications, yet only **22%** have been trained for them ([AARP & NAC, *Caregiving in the US 2025*](https://www.aarp.org/content/dam/aarp/ppi/topics/ltss/family-caregiving/caregiving-in-us-2025.doi.10.26419-2fppi.00373.001.pdf)).
+- **63 million** Americans are family caregivers. They give an average of **27 hours of care a week**, and **55%** perform medical or nursing tasks (such as injections or monitoring vital signs), yet only **22%** were trained for them ([AARP & NAC, *Caregiving in the US 2025*](https://www.aarp.org/content/dam/aarp/ppi/topics/ltss/family-caregiving/caregiving-in-us-2025.doi.10.26419-2fppi.00373.001.pdf)).
 - About **half of medications are taken incorrectly** (timing, dose, frequency), and nonadherence costs the US **$100–300 billion** a year ([CDC, MMWR 2017](https://www.cdc.gov/mmwr/volumes/66/wr/mm6645a2.htm)).
 - Amazon's own caregiver service, Alexa Together, which let up to 10 family members share care, **is no longer available** ([About Amazon](https://www.aboutamazon.com/news/devices/alexa-together-is-helping-bridge-the-miles-between-families)). Alexa+ now reaches services through MCP, so a family can host its own CareLoop.
 
@@ -50,7 +50,7 @@ Point any MCP client at `http://127.0.0.1:8765/mcp`, or run `careloop --stdio` f
 | **Safe voice purchasing** | `refill_quote` prices a 30-day supply and gives a 4-character code made only of letters that are hard to mishear. `refill_confirm` orders only when someone says the code back, and only if that person may buy, the code is under 10 minutes old and the order fits the monthly cap. A repeated confirm returns the same order, so "Yes" alone never buys anything. |
 | **Memory per person, across sessions** | Each caregiver has handoff notes ("Tell Omar Mom wants the wedding photos") and their own "What did I miss?". |
 | **Check-ins with escalation** | "I feel dizzy" or "I fell" alerts every caregiver at once and gives emergency wording. "I'm on it" lets the others know someone is handling it. |
-| **A measurable week** | `care_report` reports adherence, double doses prevented, median minutes to answer an alert, refills ordered before running out and **who carries the load**. When one person logs most doses, it suggests sharing. Every number comes from logged events. |
+| **A measurable week** | `care_report` reports adherence, double doses prevented, median minutes to answer an alert, refills ordered before running out and **who carries the load**. When one person logs most of the doses, it suggests sharing them. Every number comes from logged events. |
 | **Screens and touch** | 7 tools render **MCP Apps** cards (`ui://careloop/*.html`): a dashboard, a dose carousel, an adherence chart, a quote and receipt, alerts and the weekly report. Cards have touch actions ("Mark given", "I'm on it") through MCP Apps `tools/call`. **Purchases stay voice-only by design.** |
 | **Agent Skill** | [`skills/careloop/SKILL.md`](skills/careloop/SKILL.md) teaches any agent the voice style and the safety flows. |
 

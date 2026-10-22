@@ -231,10 +231,9 @@ class CareLoop:
                         self._audit(who["id"], "dose_blocked", med=med["id"], previous=last["id"])
                         self.store.save()
                     return {"logged": False, "blocked": "possible_double_dose", "previous": last,
-                            "speech": (f"Hold on: {by} already logged {rec}'s {med['name']} at {t}. "
-                                       f"I did not log another dose. If a second dose was really taken, say "
-                                       f"'confirm extra dose' and I'll alert the family, and please check with "
-                                       f"a pharmacist or doctor.")}
+                            "speech": (f"Hold on: {by} already logged {rec}'s {med['name']} at {t}, "
+                                       f"so I didn't log it again. If a second dose was really taken, "
+                                       f"say 'confirm extra dose'.")}
         # match to the nearest open slot (yesterday or today)
         slots = self._slots(med, when) + self._slots(med, when - timedelta(days=1))
         open_slots = [s for s in slots if not self._slot_status(med, s) and abs(when - s) <= SLOT_MATCH]
@@ -438,9 +437,9 @@ class CareLoop:
         for n in notes[-3:]:
             prefix = f"For {who['name']}:"
             if n["text"].lower().startswith(prefix.lower()):
-                parts.append(f"{n['author_name']} left you a note: {n['text'][len(prefix):].strip()}")
+                parts.append(f"{n['author_name']} left you a note: {n['text'][len(prefix):].strip().rstrip('.!')}")
             else:
-                parts.append(f"{n['author_name']} said: {n['text']}")
+                parts.append(f"{n['author_name']} said: {n['text'].rstrip('.!')}")
         if doses:
             by: dict[str, int] = {}
             for x in doses:
@@ -554,24 +553,29 @@ class CareLoop:
         rec = self.recipient()["name"]
         parts = []
         if adh["overall_pct"] is not None:
-            parts.append(f"In the last {days} days {rec} took {adh['overall_pct']} percent of scheduled doses")
+            parts.append(f"This {'week' if days == 7 else f'{days}-day stretch'}, {rec} took {adh['overall_pct']} percent of her doses")
         if blocked:
-            parts.append(f"I stopped {blocked} possible double dose{'s' if blocked > 1 else ''}")
+            parts.append(f"I stopped {blocked} double dose{'s' if blocked > 1 else ''}")
         if alerts:
-            a = f"{len(alerts)} alert{'s' if len(alerts) > 1 else ''} came in"
             if median is not None:
-                a += (", answered in under a minute" if median < 1
-                      else f", answered in a median of {median} minute{'s' if median != 1 else ''}")
-            parts.append(a)
+                parts.append("alerts were answered in under a minute" if median < 1
+                             else f"alerts were answered in a median of {median} minute{'s' if median != 1 else ''}")
+            else:
+                parts.append(f"{len(alerts)} alert{'s are' if len(alerts) > 1 else ' is'} still open")
         if orders:
-            parts.append(f"{on_time} of {len(orders)} refill{'s' if len(orders) > 1 else ''} ordered before running out")
+            parts.append("every refill was ordered before running out" if on_time == len(orders)
+                         else f"{on_time} of {len(orders)} refills were ordered before running out")
         insight = None
         caregivers = [x for x in share if self.member(x["member_id"]).get("role") == "caregiver"]
         if caregivers and total >= 6 and caregivers[0]["pct"] >= 50:
             top = caregivers[0]
-            insight = (f"{top['member']} logged {top['pct']} percent of doses. If that's a lot for one person, "
-                       f"ask Alexa to share a time slot with someone else.")
-        speech = (". ".join(parts) + "." if parts else "Not enough history yet.") + (f" {insight}" if insight else "")
+            insight = (f"{top['member']} logged {top['pct']} percent of doses; "
+                       f"consider sharing mornings or evenings.")
+        if len(parts) > 1:
+            body = ". ".join(parts[:1] + [", ".join(parts[1:-1]) + (", and " if len(parts) > 2 else "") + parts[-1]])
+        else:
+            body = "".join(parts)
+        speech = ((body[0].upper() + body[1:] + ".") if body else "Not enough history yet.") + (f" {insight[0].upper() + insight[1:]}" if insight else "")
         return {"days": days, "metrics": metrics, "load": share, "insight": insight, "adherence": adh, "speech": speech}
 
     # ------------------------------------------------------------------ appointments
